@@ -1,0 +1,11 @@
+{
+  "name": "yahtzee-scorecard",
+  "version": "1.0.0",
+  "description": "A Yahtzee scorecard that adds everything up for you.",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/scoring.test.js",
+    "start": "node -e \"console.log('Open index.html in a browser, or run: npx serve .')\""
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,456 @@
+:root {
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --surface-alt: #fafafa;
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+  --text: #18181b;
+  --muted: #71717a;
+  --accent: #e11d48;
+  --accent-soft: #ffe4e6;
+  --good: #15803d;
+  --good-soft: #dcfce7;
+  --total-bg: #f4f4f5;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 8px 24px rgba(0, 0, 0, .06);
+  --radius: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #09090b;
+    --surface: #18181b;
+    --surface-alt: #1f1f23;
+    --line: #27272a;
+    --line-strong: #3f3f46;
+    --text: #fafafa;
+    --muted: #a1a1aa;
+    --accent: #fb7185;
+    --accent-soft: #4c0519;
+    --good: #4ade80;
+    --good-soft: #052e16;
+    --total-bg: #202024;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+/*
+ * The page is a column: a fixed top bar, then the scorecard, which shrinks and
+ * scrolls inside itself when the screen is short. That keeps the player names
+ * and category names pinned to the edges of the card while scrolling.
+ */
+body {
+  margin: 0;
+  padding: 0 0 max(1rem, env(safe-area-inset-bottom));
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  height: 100vh;
+  height: 100dvh;   /* keeps the frame inside a mobile browser's chrome */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- top bar ---------- */
+
+.topbar {
+  flex: 0 0 auto;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+  padding: .75rem 1rem calc(.75rem + env(safe-area-inset-top)) 1rem;
+  padding-top: calc(.75rem + env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: -.01em;
+}
+
+.progress {
+  margin: .1rem 0 0;
+  font-size: .78rem;
+  color: var(--muted);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: .5rem;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: .88rem;
+  font-weight: 600;
+  padding: .5rem .8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn { color: #1f0510; }
+}
+
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.btn-quiet {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.btn:focus-visible,
+.cell:focus-visible,
+.opt:focus-visible,
+.name-input:focus-visible,
+.step:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- scorecard ---------- */
+
+main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.card-scroll {
+  /* Sized by content, but shrinks and scrolls rather than pushing the page. */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  -webkit-overflow-scrolling: touch;
+}
+
+.scorecard {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.scorecard th,
+.scorecard td {
+  border-bottom: 1px solid var(--line);
+  padding: 0;
+  text-align: center;
+}
+
+.scorecard tbody:last-child tr:last-child th,
+.scorecard tbody:last-child tr:last-child td {
+  border-bottom: 0;
+}
+
+/* First column: category names, pinned while scrolling sideways. */
+.row-head {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: var(--surface);
+  text-align: left;
+  padding: .5rem .7rem;
+  min-width: 9.5rem;
+  border-right: 1px solid var(--line-strong);
+  font-weight: 600;
+  font-size: .9rem;
+}
+
+.row-head .hint {
+  display: block;
+  font-weight: 400;
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+/* Header row: player names, pinned while scrolling down. */
+.scorecard thead th {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--line-strong);
+  padding: .45rem .35rem;
+}
+
+.scorecard thead th.row-head {
+  z-index: 20;
+  background: var(--surface-alt);
+}
+
+.player-col { min-width: 5.5rem; }
+
+.player-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .15rem;
+}
+
+.name-input {
+  /* Width comes from the size attribute so the field hugs the name. */
+  flex: 0 1 auto;
+  min-width: 2.5rem;
+  max-width: 100%;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: .88rem;
+  font-weight: 600;
+  text-align: center;
+  padding: .3rem .2rem;
+}
+
+.name-input:hover { border-color: var(--line-strong); }
+.name-input:focus { border-color: var(--accent); outline: none; background: var(--surface); }
+
+.remove-player {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: .25rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.remove-player:hover { color: var(--accent); }
+
+.section-label th {
+  background: var(--surface-alt);
+  color: var(--muted);
+  text-align: left;
+  font-size: .7rem;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  padding: .45rem .7rem;
+}
+
+/* Score boxes */
+.cell {
+  display: block;
+  width: 100%;
+  min-height: 2.6rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  padding: .5rem .3rem;
+  cursor: pointer;
+}
+
+.cell:hover { background: var(--surface-alt); }
+.cell.filled { font-weight: 600; }
+.cell.scratched { color: var(--muted); }
+
+.cell.empty::after {
+  content: "–";
+  color: var(--line-strong);
+}
+
+/* Computed rows */
+.total-row td,
+.total-row th {
+  background: var(--total-bg);
+  font-weight: 600;
+}
+
+.total-row .row-head { background: var(--total-bg); }
+
+.total-value {
+  display: block;
+  padding: .5rem .3rem;
+  font-size: .95rem;
+}
+
+.total-value .sub {
+  display: block;
+  font-size: .68rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.bonus-earned { color: var(--good); }
+
+.grand-row td,
+.grand-row th {
+  background: var(--accent-soft);
+  border-top: 2px solid var(--accent);
+}
+
+.grand-row .row-head { background: var(--accent-soft); }
+.grand-row .total-value { font-size: 1.25rem; font-weight: 700; }
+
+.leader .total-value::after {
+  content: " 👑";
+  font-size: .9rem;
+}
+
+/* Yahtzee bonus stepper */
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .2rem;
+  padding: .35rem .2rem;
+}
+
+.step {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step:disabled { opacity: .3; cursor: not-allowed; }
+
+.bonus-count {
+  min-width: 2.6rem;
+  font-weight: 600;
+  font-size: .9rem;
+}
+
+.tip {
+  flex: 0 0 auto;
+  max-width: 34rem;
+  margin: .9rem auto 0;
+  color: var(--muted);
+  font-size: .8rem;
+  text-align: center;
+}
+
+/* ---------- entry sheet ---------- */
+
+.sheet {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  width: min(30rem, 100%);
+  max-width: 100%;
+  margin: auto auto 0;
+  color: var(--text);
+}
+
+.sheet::backdrop { background: rgba(0, 0, 0, .5); }
+
+.sheet-form {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 40rem) {
+  .sheet { margin: auto; }
+  .sheet-form { border-radius: var(--radius); }
+}
+
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .9rem;
+}
+
+.sheet-head h2 { margin: 0; font-size: 1.05rem; }
+.sheet-sub { margin: .15rem 0 0; color: var(--muted); font-size: .82rem; }
+
+.options {
+  display: grid;
+  gap: .5rem;
+  grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr));
+}
+
+.options.wide { grid-template-columns: 1fr 1fr; }
+
+/* Dice totals are bare numbers, so they pack tighter. */
+.options.compact { grid-template-columns: repeat(auto-fill, minmax(3.1rem, 1fr)); }
+.options.compact .opt { min-height: 2.7rem; padding: .55rem .3rem; }
+
+.opt {
+  border: 1px solid var(--line-strong);
+  background: var(--surface-alt);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: .7rem .4rem;
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 3rem;
+}
+
+.opt:hover { border-color: var(--accent); }
+
+.opt .opt-sub {
+  display: block;
+  font-size: .68rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.opt.current {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.opt.zero {
+  color: var(--muted);
+}
+
+.sheet-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: .9rem;
+}
+
+.sheet-foot .btn { width: 100%; }

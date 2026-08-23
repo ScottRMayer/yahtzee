@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A Yahtzee scorecard that adds everything up for you.">
+<meta name="theme-color" content="#111827">
+<title>Yahtzee Scorecard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23e11d48'/><g fill='white'><circle cx='30' cy='30' r='9'/><circle cx='70' cy='30' r='9'/><circle cx='50' cy='50' r='9'/><circle cx='30' cy='70' r='9'/><circle cx='70' cy='70' r='9'/></g></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-title">
+    <h1>Yahtzee</h1>
+    <p id="progress" class="progress">&nbsp;</p>
+  </div>
+  <div class="topbar-actions">
+    <button type="button" id="add-player" class="btn">+ Player</button>
+    <button type="button" id="new-game" class="btn btn-quiet">New game</button>
+  </div>
+</header>
+
+<main>
+  <div class="card-scroll">
+    <table class="scorecard" id="scorecard">
+      <caption class="visually-hidden">Yahtzee scorecard. Choose a box to enter a score.</caption>
+    </table>
+  </div>
+
+  <p class="tip">Tap any box to enter a score. Totals, the 63-point bonus and Yahtzee bonuses are worked out for you. Your game is saved on this device.</p>
+</main>
+
+<dialog id="entry" class="sheet" aria-labelledby="entry-title">
+  <form method="dialog" class="sheet-form">
+    <div class="sheet-head">
+      <div>
+        <h2 id="entry-title">Category</h2>
+        <p id="entry-sub" class="sheet-sub">Player</p>
+      </div>
+      <button type="button" class="btn btn-quiet sheet-close" data-close aria-label="Close">Close</button>
+    </div>
+    <div id="entry-options" class="options"></div>
+    <div class="sheet-foot">
+      <button type="button" id="entry-clear" class="btn btn-quiet">Clear box</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="scoring.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
