@@ -147,7 +147,14 @@ function declaredProps(body) {
  * ever defined only inside a media or [data-theme] block.
  * ------------------------------------------------------------------ */
 
-const DARK_MEDIA = /@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*/gi;
+/*
+ * Deliberately strict: the condition must be the ENTIRE prelude, so the lookahead
+ * requires the block to open right after it. A compound query
+ * ("… and (min-width: 40rem)") would otherwise match this pattern, lose its extra
+ * terms in the rewrite and emit an unconditional dark rule. Anything this misses is
+ * caught by the unconsumed-query check in themeAwareCss rather than sailing through.
+ */
+const DARK_MEDIA = /@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*(?=\{)/gi;
 
 function extractDarkBlocks(css) {
   const blocks = [];
@@ -190,16 +197,37 @@ function rescope(selector, base) {
     .join(',\n  ');
 }
 
+/**
+ * Guards the rescope() contract for ONE emitted rule: every non-root selector
+ * must come out wrapped in :where(), so the rewrite can never start winning a
+ * cascade fight the original stylesheet lost on purpose. Checked per rule and
+ * per base — a whole-output search would let one correct emission vouch for a
+ * broken one elsewhere.
+ */
+function assertScoped(originalSelector, emitted, base) {
+  for (const part of originalSelector.split(',').map((s) => s.trim()).filter(Boolean)) {
+    if (part === ':root' || part === 'html') continue;
+    if (!emitted.includes(':where(' + base + ') ' + part)) {
+      throw new Error(
+        'dark rule "' + part + '" would outrank its neighbours under ' + base +
+        ' — it must be wrapped in :where(), got: ' + emitted
+      );
+    }
+  }
+}
+
 function emitRules(darkRules, base, indent) {
   return darkRules
     .map((rule) => {
+      const selector = rescope(rule.selector, base);
+      assertScoped(rule.selector, selector, base);
       const decls = rule.body
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean)
         .map((line) => indent + '  ' + line)
         .join('\n');
-      return indent + rescope(rule.selector, base) + ' {\n' + decls + '\n' + indent + '}';
+      return indent + selector + ' {\n' + decls + '\n' + indent + '}';
     })
     .join('\n\n');
 }
@@ -289,31 +317,23 @@ function themeAwareCss(css) {
   }
   out += css.slice(cursor);
 
-  if (blocks !== darkRules.length && blocks === 0) throw new Error('dark blocks were not rewritten');
-  assertSpecificityPreserved(darkRules, out);
-  return out;
-}
-
-/**
- * Guards the rescope() contract: every dark rule that is not root-level must
- * appear wrapped in :where(), so the rewrite cannot silently start winning
- * cascade fights the original stylesheet lost on purpose.
- */
-function assertSpecificityPreserved(darkRules, out) {
-  const unwrapped = [];
-  for (const rule of darkRules) {
-    for (const part of rule.selector.split(',').map((s) => s.trim()).filter(Boolean)) {
-      if (part === ':root' || part === 'html') continue;
-      for (const base of [MEDIA_BASE, ATTR_BASE]) {
-        if (!out.includes(':where(' + base + ') ' + part)) unwrapped.push(part + ' under ' + base);
-      }
-    }
-  }
-  if (unwrapped.length) {
+  /*
+   * Every dark query in the stylesheet must have been consumed above. A query
+   * the strict pattern skips ("@media screen and (prefers-color-scheme: dark)")
+   * would otherwise be copied through untouched: it would still follow the
+   * system setting but gain no data-theme counterpart, so an explicit dark
+   * stamp would quietly render the light value — the exact bug this rewrite
+   * exists to prevent. Fail loudly instead.
+   */
+  const queries = (css.match(/prefers-color-scheme/gi) || []).length;
+  if (blocks !== queries) {
     throw new Error(
-      'these dark rules would outrank their neighbours after rewriting:\n  ' + unwrapped.join('\n  ')
+      'rewrote ' + blocks + ' of ' + queries + ' prefers-color-scheme queries in styles.css.\n' +
+      'Each one must read exactly "@media (prefers-color-scheme: dark) {" — no extra terms, ' +
+      'no "screen and", no comma list — so its rules can be re-emitted for data-theme.'
     );
   }
+  return out;
 }
 
 /* ------------------------------------------------------------------ *
@@ -380,8 +400,10 @@ function build() {
    * literal spanning blank lines would come out shorter than it went in).
    */
   const PARK = '@@INLINE';
+  if (html.includes(PARK)) throw new Error('index.html already contains the ' + PARK + ' placeholder');
   const parked = [];
   const park = (text) => {
+    if (text.includes(PARK)) throw new Error('an inlined source contains the ' + PARK + ' placeholder');
     parked.push(text);
     return PARK + (parked.length - 1) + '@@';
   };

@@ -7,14 +7,27 @@ No install, no build step, no accounts. It's a single web page.
 
 ## Using it
 
-Open `index.html` in any browser — double-click the file, or drag it into a
-browser window. That's it.
+**On this computer:** open `index.html` in any browser — double-click it, or
+drag it into a browser window. No server needed.
 
-To use it on your phone at the table, publish it with GitHub Pages: in this
-repo go to **Settings → Pages**, set the source to **Deploy from a branch**,
-pick the branch and the `/ (root)` folder, and it will be served at
-`https://scottrmayer.github.io/yahtzee/`. Add that to your home screen and it
-behaves like an app.
+**Anywhere, as one file:** `dist/yahtzee.html` is the whole app — markup,
+styles and scripts inlined into a single self-contained page. Save it to a
+phone, a USB stick or an email to yourself and open it. It works offline and
+has no other files to keep track of.
+
+**On your phone, as a website:** GitHub Pages serves this repo as-is — there
+is no build step to configure. Pushing code does *not* publish a site on its
+own; Pages has to be switched on once:
+
+1. Go to **Settings → Pages** in this repository.
+2. Under *Build and deployment* → *Source*, choose **Deploy from a branch**.
+3. Pick the branch holding this code and the **`/ (root)`** folder. Save.
+4. Give it a minute, then open `https://scottrmayer.github.io/yahtzee/`.
+
+Add that page to your home screen and it behaves like an app.
+
+> Opening a `raw.githubusercontent.com` link instead will show the source code
+> rather than the app — GitHub serves raw files as plain text.
 
 ## How it works
 
@@ -69,7 +82,10 @@ lower box you use as normal, and add the 100-point bonus with the stepper.
 | `styles.css` | Styling, light and dark |
 | `scoring.js` | The rules: legal values per box, all totals. No DOM. |
 | `app.js` | Rendering, score entry, saving |
+| `build.js` | Bundles the above into `dist/` |
 | `test/scoring.test.js` | Tests for the scoring rules |
+
+Edit the four source files; `dist/` is generated, never hand-edited.
 
 ## Tests
 
@@ -80,3 +96,27 @@ npm test
 Runs the scoring suite on Node's built-in test runner — no dependencies to
 install. It covers the legal values for every box, the 63-point bonus boundary,
 Yahtzee bonuses, and winner/tie detection.
+
+## Build
+
+```sh
+npm run build
+```
+
+Regenerates `dist/` from the sources, so the bundles can't drift from the app:
+
+| Output | For |
+| --- | --- |
+| `dist/yahtzee.html` | One standalone file — open it anywhere, offline |
+| `dist/artifact-page.html` | A fragment for a host that supplies the document shell and stamps `data-theme` on the root element |
+
+The fragment's stylesheet is rewritten so the dark palette answers both the
+viewer's system setting and an explicit `data-theme`. That rewrite is the
+delicate part, and the build refuses to emit a bundle that would get it wrong:
+each dark block is re-scoped **in place** and wrapped in `:where()` so neither
+source order nor specificity shifts — hoisting those rules or raising their
+specificity silently changes which declaration wins, which is how the quiet
+buttons once ended up invisible on a dark background. The build also fails if a
+colour would exist only in dark mode, if `body` loses its token background, or
+if a `prefers-color-scheme` query is written in a form the rewrite can't
+translate.

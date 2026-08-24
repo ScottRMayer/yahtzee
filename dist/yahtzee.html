@@ -517,7 +517,7 @@ main {
     </table>
   </div>
 
-  <p class="tip">Tap any box to enter a score. Totals, the 63-point bonus and Yahtzee bonuses are worked out for you. Your game is saved on this device.</p>
+  <p class="tip" id="tip">Tap any box to enter a score. Totals, the 63-point bonus and Yahtzee bonuses are worked out for you. Your game is saved on this device.</p>
 </main>
 
 <dialog id="entry" class="sheet" aria-labelledby="entry-title">
@@ -755,21 +755,34 @@ main {
 
   /* ---------- dialogs ---------- */
 
+  var FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
   /**
-   * Opens a sheet. A sandboxed frame without allow-modals refuses showModal(),
-   * so fall back to a non-modal dialog with our own scrim — otherwise the
-   * button would appear to do nothing at all.
+   * Opens a sheet, falling back to a non-modal dialog with our own scrim when
+   * the host won't grant a modal one (a sandboxed frame without allow-modals).
+   *
+   * The fallback is chosen by asking whether the dialog actually opened rather
+   * than by catching: the spec has a blocked showModal() *return* silently, so
+   * a thrown error is only one of the two ways it can be refused. Miss the
+   * silent one and the button looks dead.
    */
   function openDialog(dialog) {
+    if (dialog.open) return;
+
     try {
       dialog.showModal();
+    } catch (err) {
+      /* refused loudly — handled the same as being refused quietly */
+    }
+
+    if (dialog.open) {
       dialog.classList.remove('no-modal');
       return;
-    } catch (err) {
-      dialog.classList.add('no-modal');
-      scrim.hidden = false;
-      if (!dialog.open) dialog.show();
     }
+
+    dialog.classList.add('no-modal');
+    scrim.hidden = false;
+    dialog.show();
   }
 
   function closeDialog(dialog) {
@@ -778,12 +791,31 @@ main {
     if (!sheet.open && !confirmSheet.open) scrim.hidden = true;
   }
 
-  // Escape closes a modal dialog for free; a fallback one needs handling.
+  /** The open fallback dialog, innermost first. Null while modals work. */
+  function fallbackDialog() {
+    if (confirmSheet.open && confirmSheet.classList.contains('no-modal')) return confirmSheet;
+    if (sheet.open && sheet.classList.contains('no-modal')) return sheet;
+    return null;
+  }
+
+  function dismissFallback(dialog) {
+    if (dialog === confirmSheet) resolveConfirm(false);
+    else closeEntry();
+  }
+
+  // A modal dialog gets Escape and a focus trap from the browser. The fallback
+  // has to provide both itself, or focus walks off behind the scrim.
   document.addEventListener('keydown', function (event) {
     if (event.key !== 'Escape') return;
-    [sheet, confirmSheet].forEach(function (dialog) {
-      if (dialog.open && dialog.classList.contains('no-modal')) closeDialog(dialog);
-    });
+    var dialog = fallbackDialog();
+    if (dialog) dismissFallback(dialog);
+  });
+
+  document.addEventListener('focusin', function (event) {
+    var dialog = fallbackDialog();
+    if (!dialog || dialog.contains(event.target)) return;
+    var first = dialog.querySelector(FOCUSABLE);
+    if (first) first.focus();
   });
 
   var pendingConfirm = null;
@@ -857,6 +889,24 @@ main {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (err) {
       /* out of space or storage blocked — the game still plays, just unsaved */
+    }
+  }
+
+  /**
+   * The footer promises the game is saved. Where the browser won't allow that
+   * — private windows, blocked site data, a frame without storage access —
+   * say so instead, so nobody loses a card to a promise we can't keep.
+   */
+  function warnIfUnsaved() {
+    var tip = document.getElementById('tip');
+    if (!tip) return;
+    try {
+      var probe = STORAGE_KEY + ':probe';
+      window.localStorage.setItem(probe, '1');
+      window.localStorage.removeItem(probe);
+    } catch (err) {
+      tip.textContent = 'Tap any box to enter a score — totals are worked out for you. '
+        + 'This browser is blocking saved data, so reloading the page will clear the card.';
     }
   }
 
@@ -977,7 +1027,11 @@ main {
     document.getElementById('add-player').disabled = players.length >= MAX_PLAYERS;
 
     if (focusAfterRender) {
-      var restore = table.querySelector('[data-focus-key="' + focusAfterRender + '"]');
+      // A leading "#" targets a control outside the table, which render()
+      // leaves standing; anything else is a cell key inside the rebuilt table.
+      var restore = focusAfterRender.charAt(0) === '#'
+        ? document.querySelector(focusAfterRender)
+        : table.querySelector('[data-focus-key="' + focusAfterRender + '"]');
       if (restore) restore.focus();
       focusAfterRender = null;
     }
@@ -1238,7 +1292,10 @@ main {
     if (state.players.length <= 1 || !player) return;
 
     var drop = function () {
+      closeEntry();                     // never leave a sheet pointing at a gone player
       state.players.splice(index, 1);
+      // The × that had focus is about to be destroyed; land somewhere real.
+      focusAfterRender = '#add-player';
       commit();
     };
 
@@ -1249,6 +1306,7 @@ main {
 
   function newGame() {
     var reset = function () {
+      closeEntry();
       state.players.forEach(function (player) {
         player.scores = {};
         player.yahtzeeBonus = 0;
@@ -1285,6 +1343,7 @@ main {
 
   state = load();
   render();
+  warnIfUnsaved();
 })();
 </script>
 </body>
