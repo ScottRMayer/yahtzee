@@ -4,6 +4,7 @@
   "description": "A Yahtzee scorecard that adds everything up for you.",
   "private": true,
   "scripts": {
+    "build": "node build.js",
     "test": "node --test test/scoring.test.js",
     "start": "node -e \"console.log('Open index.html in a browser, or run: npx serve .')\""
   },

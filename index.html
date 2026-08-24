@@ -48,6 +48,19 @@
   </form>
 </dialog>
 
+<dialog id="confirm" class="sheet" aria-labelledby="confirm-title">
+  <div class="sheet-form">
+    <h2 id="confirm-title">Are you sure?</h2>
+    <p id="confirm-text" class="sheet-sub"></p>
+    <div class="confirm-actions">
+      <button type="button" id="confirm-cancel" class="btn btn-quiet">Cancel</button>
+      <button type="button" id="confirm-ok" class="btn">Confirm</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="scrim" class="scrim" hidden></div>
+
 <script src="scoring.js"></script>
 <script src="app.js"></script>
 </body>
